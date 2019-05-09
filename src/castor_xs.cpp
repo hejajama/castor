@@ -525,9 +525,9 @@ double inthelperf_dps_mc(double* vec, size_t dim, void* p)
     
     // Do angular integral, and add jacobian 2pi
     // 2nd to last parameters: false=no deuteron
-    double pdf_scale = -1; //0.5*(pt1+pt2); // negative = automatic
-   // if (pdf_scale < par->pdf->MinQ())
-   //     pdf_scale = par->pdf->MinQ();
+    double pdf_scale = 0.5*(pt1+pt2); // negative = automatic
+    if (pdf_scale < par->pdf->MinQ())
+        pdf_scale = par->pdf->MinQ();
     double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton_dps(y1,pt1,y2,pt2, par->sqrts,
                                                                par->pdf, false,  pdf_scale );
     
@@ -604,9 +604,9 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p)
     
     // Do angular integral, and add jacobian 2pi
     // 2nd to last parameters: false=no deuteron
-    double pdf_scale = -1; //0.5*(pt1+pt2); // negative = automatic
-    // if (pdf_scale < par->pdf->MinQ())
-    //     pdf_scale = par->pdf->MinQ();
+    double pdf_scale = (pt1+pt2+pt3)/3.0;
+    if (pdf_scale < par->pdf->MinQ())
+        pdf_scale = par->pdf->MinQ();
     double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton_3ps(y1,pt1,y2,pt2, y3, pt3, par->sqrts,
                                                                    par->pdf, false,  pdf_scale );
     
@@ -618,7 +618,7 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p)
     
     // (2pi)^3 from two angular integrals, this should later be scaled by R/2pi to take into account
     //the jet finding algorithm effect
-    return std::pow(2.0*M_PI, 3.0)*pt1*pt2*diffxs;
+    return std::pow(2.0*M_PI, 3.0)*pt1*pt2*pt3*diffxs;
 }
 
 
