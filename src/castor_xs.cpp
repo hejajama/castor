@@ -342,7 +342,6 @@ int main(int argc, char* argv[])
             
             // Vec is {pt1,pt2,y1,y2}
             
-            cout << "# mcintpoints " << mcintpoints << endl;
             
             gsl_monte_miser_integrate(&F, lower, upper, F.dim, mcintpoints, rng, s, &result, &abserr);
             gsl_monte_miser_free(s);
