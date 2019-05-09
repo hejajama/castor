@@ -31,7 +31,7 @@ using namespace std;
 const double default_particle_mass = 0.2;
 const double castor_min_pseudorapidity = 5.2;
 const double castor_max_pseudorapidity = 6.6;
-double rapidity_shift = 0.465;
+double rapidity_shift = 0;
 
 int INTWORKSPACEDIVISIONS = 5;
 const double INTACCURACY = 0.001;
@@ -70,7 +70,6 @@ struct inthelper_castor
     double y;   // rapidity integrated over
     gsl_integration_workspace* workspace;
     double m;
-    bool Ap_mode;
 };
 
 double inthelperf_pt(double pt, void* p);
@@ -95,7 +94,6 @@ int main(int argc, char* argv[])
     gsl_set_error_handler(&ErrHandler);
     double binwidth = -1;
 
-    bool Ap_mode=false; // if true, nucleus goes into Castor
     int DPS_N = 2;   // Number of independent particles in DPS
 
     if ( argc==1 or (string(argv[1])=="-help" or string(argv[1])=="--help")  )
@@ -106,7 +104,7 @@ int main(int argc, char* argv[])
         cout << "-sqrts center-of-mass energy [GeV]" << endl;
         cout << "-x0 val: set x0 value for the BK solutions (overrides the value in BK file)" << endl;
         cout << "-gsl_ft: use GSL to directly calculate Fourier transform" << endl;
-        cout << "-pA / -Ap: use positive or negative rapidity sift" << endl;
+        cout << "-yshift [value, LHC pA=+/-0.465]" << endl;
         cout << "-DPS N: compute DPS contribution for N particle production" << endl;
         cout << "-m mass: set jet mass in GeV " << endl;
         cout << "-minpt cutoff: set min pT cutoff in GeV" << endl;
@@ -129,7 +127,7 @@ int main(int argc, char* argv[])
     bool deuteron=false;
     double ptstep=0.1;
     double minE=-1; double maxE=-1;
-    double Estep = 0;
+    double Estep = -1;
     int mcintpoints=1e4;
     bool dps=false;
     
@@ -179,10 +177,8 @@ int main(int argc, char* argv[])
             LOW_PT_CUT = StrToReal(argv[i+1]);
         else if (string(argv[i])=="-gsl_ft")
             ft_method = GSL;
-        else if (string(argv[i])=="-Ap")
-            Ap_mode=true;
-        else if (string(argv[i])=="-pA")
-            Ap_mode=false;
+        else if (string(argv[i])=="-yshift")
+            rapidity_shift=StrToReal(argv[i+1]);
         else if (string(argv[i])=="-intdivisions")
             INTWORKSPACEDIVISIONS = StrToInt(argv[i+1]);
         else if (string(argv[i])=="-mcintpoints")
@@ -192,14 +188,15 @@ int main(int argc, char* argv[])
             dps=true;
             DPS_N = StrToInt(argv[i+1]);
         }
-	else if (string(argv[i])=="-bin")
-	    binwidth=StrToReal(argv[i+1]);
-        else if (string(argv[i]).substr(0,1)=="-")
+        else if (string(argv[i])=="-bin")
+            binwidth=StrToReal(argv[i+1]);
+        else if (string(argv[i]).substr(0,1)=="-" and string(argv[i-1]) != "-yshift")
         {
             cerr << "Unrecoginzed parameter " << argv[i] << endl;
             return -1;
         }
     }
+    
 
     if (binwidth < 0)
          binwidth=10;
@@ -242,7 +239,7 @@ int main(int argc, char* argv[])
     cout << "# " << N.GetString() << endl;
     cout << "# Jet mass = " << mass << " GeV, low pt cutoff = " << LOW_PT_CUT << " GeV";
     cout << "# PDF: " << pdf->GetString() << endl;
-    cout <<"# Ap mode: "; if (Ap_mode) cout << "true"; else cout << "false"; cout << endl;
+    cout <<"# Rapidity shift: " << rapidity_shift << endl;
     
     // Print quarks
     std::vector<Parton> ps;
@@ -281,7 +278,6 @@ int main(int argc, char* argv[])
         par.sqrts=sqrts;
         par.pdf=pdf;
         par.m=mass;
-        par.Ap_mode=Ap_mode;
         
          double result,abserr;
         
@@ -393,8 +389,6 @@ double inthelperf_y(double y, void* p)
     
     // Compute pt limits
     double shift = rapidity_shift;
-    if (par->Ap_mode)
-        shift = -rapidity_shift;
 
 	// Check that the parton ends up in Castor
     // Note that if we really sparate rapidity and pseudorapidity, this can
@@ -441,8 +435,6 @@ double inthelperf_pt(double pt, void* p)
     
     
     double shift = rapidity_shift;
-    if (par->Ap_mode)
-        shift = -rapidity_shift;
  
     // Check kinematics
     double eta_lab = Pseudorapidity(par->y + shift, pt, par->m);
@@ -502,8 +494,6 @@ double inthelperf_dps_mc(double* vec, size_t dim, void* p)
     
     
     double shift = rapidity_shift;
-    if (par->Ap_mode)
-        shift = -rapidity_shift;
     
     double y1_lab = y1+shift;
     double y2_lab = y2+shift;
@@ -578,8 +568,6 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p)
     
     
     double shift = rapidity_shift;
-    if (par->Ap_mode)
-        shift = -rapidity_shift;
     
     double y1_lab = y1+shift;
     double y2_lab = y2+shift;
