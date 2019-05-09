@@ -84,8 +84,8 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p);
 int main(int argc, char* argv[])
 {
     std::stringstream infostr;
-    infostr << "# Single parton yield   (c) Heikki Mäntysaari <heikki.mantysaari@jyu.fi>, 2011-2018 " << endl;
-    infostr << "# Latest git commit " << g_GIT_SHA1 << endl;
+    infostr << "# Single parton yield   (c) Heikki Mäntysaari <heikki.mantysaari@jyu.fi>, 2011-2019 " << endl;
+    infostr << "# Latest git commit " << g_CASTOR_GIT_SHA1 << " local repo " << g_CASTOR_GIT_LOCAL_CHANGES << endl;
     infostr << "# Command: ";
     for (int i=0; i<argc; i++)
         infostr << argv[i] << " ";
@@ -102,6 +102,7 @@ int main(int argc, char* argv[])
     {
         cout << "-data [bksolutionfile]" << endl;
         cout << "-minE, -maxE: calorimeter energy range" << endl;
+        cout << "-Estep: step size for energy values that we compute" << endl;
         cout << "-sqrts center-of-mass energy [GeV]" << endl;
         cout << "-x0 val: set x0 value for the BK solutions (overrides the value in BK file)" << endl;
         cout << "-gsl_ft: use GSL to directly calculate Fourier transform" << endl;
@@ -128,6 +129,7 @@ int main(int argc, char* argv[])
     bool deuteron=false;
     double ptstep=0.1;
     double minE=-1; double maxE=-1;
+    double Estep = 0;
     int mcintpoints=1e4;
     bool dps=false;
     
@@ -145,6 +147,8 @@ int main(int argc, char* argv[])
             minE  = StrToReal(argv[i+1]);
         else if (string(argv[i])=="-maxE")
             maxE  = StrToReal(argv[i+1]);
+        else if (string(argv[i])=="-Estep")
+            Estep = StrToReal(argv[i+1]);
         else if (string(argv[i])=="-lo")
             order=LO;
         else if (string(argv[i])=="-nlo")
@@ -198,10 +202,11 @@ int main(int argc, char* argv[])
     }
 
     if (binwidth < 0)
-         binwidth=20;
+         binwidth=10;
+    if (Estep < 0)
+        Estep = 50;
 
-    if (maxE < 0)
-        maxE  = minE + binwidth;
+    
     // Default PDF and FF
     if (pdf==NULL)
         pdf = new CTEQ();
@@ -265,101 +270,101 @@ int main(int argc, char* argv[])
         cout << "# Computing DPS contribution" << endl;
 
     //////////////////////////////////////
-    inthelper_castor par;
-    par.xs = &xs;
-    par.minE=minE;
-    par.maxE=maxE;
-    par.sqrts=sqrts;
-    par.pdf=pdf;
-    par.m=mass;
-    par.Ap_mode=Ap_mode;
-    
-     double result,abserr;
-    
-    
-    if (dps == false)
-    {
-        gsl_function fun;
-        fun.params=&par;
-        fun.function = inthelperf_y;
-        
-        
-        
-        gsl_integration_workspace *workspace
-        = gsl_integration_workspace_alloc(INTWORKSPACEDIVISIONS);
-        gsl_integration_workspace *workspace_internal
-        = gsl_integration_workspace_alloc(INTWORKSPACEDIVISIONS);
-        par.workspace = workspace_internal;
-        int status;
-        double miny=castor_min_pseudorapidity-2; double maxy = castor_max_pseudorapidity+2;
-        status = gsl_integration_qag(&fun, miny, maxy, 0, INTACCURACY, INTWORKSPACEDIVISIONS, GSL_INTEG_GAUSS51, workspace, &result, &abserr);
-        if (status)
-            cerr << "y integral failed at " << LINEINFO <<": result " << result
-                << " relerror " << std::abs(abserr/result) << endl;
-        
-        gsl_integration_workspace_free(workspace);
-        gsl_integration_workspace_free(workspace_internal);
-        
-    }
-    else
-    {
-        const gsl_rng_type * rngtype = gsl_rng_default;
-        gsl_rng_env_setup();
-        gsl_rng* rng = gsl_rng_alloc(rngtype);
-        
-        double *lower;
-        double *upper;
-        lower = new double[DPS_N*2];
-        upper = new double[DPS_N*2];
-        
-        gsl_monte_function F;
-        if (DPS_N==2)
-        {
-            F.f = inthelperf_dps_mc;
-            F.dim=4;
-            lower[0]=lower[1]=LOW_PT_CUT;
-            lower[2]=lower[3]=castor_min_pseudorapidity - rapidity_shift;
-            upper[0]=upper[1]=30;
-            upper[2]=upper[3]=castor_max_pseudorapidity - rapidity_shift;
-
-        }
-        else if (DPS_N == 3)
-        {
-            F.f = inthelperf_3ps_mc;
-            F.dim=6;
-            lower[0]=lower[1]=lower[2]=LOW_PT_CUT;
-            lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity - rapidity_shift;
-            upper[0]=upper[1]=upper[2]=30;
-            upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity - rapidity_shift;
-        }
-        F.params = &par;
-        gsl_monte_miser_state *s = gsl_monte_miser_alloc(F.dim);
-        
-        // Vec is {pt1,pt2,y1,y2}
-        
-        cout << "# mcintpoints " << mcintpoints << endl;
-        
-        
-        
-        
-        
-        gsl_monte_miser_integrate(&F, lower, upper, F.dim, mcintpoints, rng, s, &result, &abserr);
-        gsl_monte_miser_free(s);
-        gsl_rng_free(rng);
-        
-        cout << "# MC integral uncertainty estimate " << 100.0*std::abs(abserr/result) << "%" << endl;
-        
-        
-        delete[] lower;
-        delete[] upper;
-        
-    }
-    
-    
-    
     cout << "# minE   maxE   yield [note: for p, multiply by sigma0/2 / sigma_inel, for nuke: do b int]" << endl;
-    cout << minE << " " << maxE << " " << result << " " << mcintpoints << endl;
+    
+    for (double energy = minE; energy + binwidth <= maxE; energy += Estep)
+    {
+        inthelper_castor par;
+        par.xs = &xs;
+        par.minE=energy;
+        par.maxE=energy + binwidth;
+        par.sqrts=sqrts;
+        par.pdf=pdf;
+        par.m=mass;
+        par.Ap_mode=Ap_mode;
+        
+         double result,abserr;
+        
+        
+        if (dps == false)
+        {
+            gsl_function fun;
+            fun.params=&par;
+            fun.function = inthelperf_y;
+            
+            
+            
+            gsl_integration_workspace *workspace
+            = gsl_integration_workspace_alloc(INTWORKSPACEDIVISIONS);
+            gsl_integration_workspace *workspace_internal
+            = gsl_integration_workspace_alloc(INTWORKSPACEDIVISIONS);
+            par.workspace = workspace_internal;
+            int status;
+            double miny=castor_min_pseudorapidity-2; double maxy = castor_max_pseudorapidity+2;
+            status = gsl_integration_qag(&fun, miny, maxy, 0, INTACCURACY, INTWORKSPACEDIVISIONS, GSL_INTEG_GAUSS51, workspace, &result, &abserr);
+            if (status)
+                cerr << "y integral failed at " << LINEINFO <<": result " << result
+                    << " relerror " << std::abs(abserr/result) << endl;
+            
+            gsl_integration_workspace_free(workspace);
+            gsl_integration_workspace_free(workspace_internal);
+            
+        }
+        else
+        {
+            const gsl_rng_type * rngtype = gsl_rng_default;
+            gsl_rng_env_setup();
+            gsl_rng* rng = gsl_rng_alloc(rngtype);
+            
+            double *lower;
+            double *upper;
+            lower = new double[DPS_N*2];
+            upper = new double[DPS_N*2];
+            
+            gsl_monte_function F;
+            if (DPS_N==2)
+            {
+                F.f = inthelperf_dps_mc;
+                F.dim=4;
+                lower[0]=lower[1]=LOW_PT_CUT;
+                lower[2]=lower[3]=castor_min_pseudorapidity - rapidity_shift;
+                upper[0]=upper[1]=30;
+                upper[2]=upper[3]=castor_max_pseudorapidity - rapidity_shift;
 
+            }
+            else if (DPS_N == 3)
+            {
+                F.f = inthelperf_3ps_mc;
+                F.dim=6;
+                lower[0]=lower[1]=lower[2]=LOW_PT_CUT;
+                lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity - rapidity_shift;
+                upper[0]=upper[1]=upper[2]=30;
+                upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity - rapidity_shift;
+            }
+            F.params = &par;
+            gsl_monte_miser_state *s = gsl_monte_miser_alloc(F.dim);
+            
+            // Vec is {pt1,pt2,y1,y2}
+            
+            cout << "# mcintpoints " << mcintpoints << endl;
+            
+            gsl_monte_miser_integrate(&F, lower, upper, F.dim, mcintpoints, rng, s, &result, &abserr);
+            gsl_monte_miser_free(s);
+            gsl_rng_free(rng);
+            
+            cout << "# MC integral uncertainty estimate " << 100.0*std::abs(abserr/result) << "%" << endl;
+            
+            
+            delete[] lower;
+            delete[] upper;
+            
+        }
+    
+    
+    
+    
+        cout << energy << " " << energy+binwidth << " " << result << endl;
+    }
     
 
     return 0;

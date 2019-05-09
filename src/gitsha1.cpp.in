@@ -1,3 +1,6 @@
 #include "gitsha1.h"
-#define GIT_SHA1 "@GIT_SHA1@"
-const char g_GIT_SHA1[] = GIT_SHA1;
+#define CASTOR_GIT_SHA1 "@GIT_SHA1@"
+#define CASTOR_GIT_LOCAL_CHANGES "@GIT_LOCAL_CHANGES@"
+
+const char g_CASTOR_GIT_SHA1[] = CASTOR_GIT_SHA1;
+const char g_CASTOR_GIT_LOCAL_CHANGES[] =  CASTOR_GIT_LOCAL_CHANGES;

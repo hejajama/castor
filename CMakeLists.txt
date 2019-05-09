@@ -20,6 +20,7 @@ link_directories("../amplitudelib_v2/build/lib/")
 
 find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
+include_directories("./src/")
 
 
 add_subdirectory(src)
