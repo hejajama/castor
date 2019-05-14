@@ -323,9 +323,9 @@ int main(int argc, char* argv[])
                 F.f = inthelperf_dps_mc;
                 F.dim=4;
                 lower[0]=lower[1]=LOW_PT_CUT;
-                lower[2]=lower[3]=castor_min_pseudorapidity - rapidity_shift;
+                lower[2]=lower[3]=castor_min_pseudorapidity - 2;
                 upper[0]=upper[1]=30;
-                upper[2]=upper[3]=castor_max_pseudorapidity - rapidity_shift;
+                upper[2]=upper[3]=castor_max_pseudorapidity +2 ;
 
             }
             else if (DPS_N == 3)
@@ -333,9 +333,9 @@ int main(int argc, char* argv[])
                 F.f = inthelperf_3ps_mc;
                 F.dim=6;
                 lower[0]=lower[1]=lower[2]=LOW_PT_CUT;
-                lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity - rapidity_shift;
+                lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity -2;
                 upper[0]=upper[1]=upper[2]=30;
-                upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity - rapidity_shift;
+                upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity + 2;
             }
             F.params = &par;
             gsl_monte_miser_state *s = gsl_monte_miser_alloc(F.dim);
