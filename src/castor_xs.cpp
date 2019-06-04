@@ -79,6 +79,7 @@ double inthelperf_mc(double* vec, size_t dim, void* par);
 
 double inthelperf_dps_mc(double* vec, size_t dim, void* p);
 double inthelperf_3ps_mc(double* vec, size_t dim, void* p);
+double inthelperf_4ps_mc(double* vec, size_t dim, void* p);
 
 int main(int argc, char* argv[])
 {
@@ -323,9 +324,9 @@ int main(int argc, char* argv[])
                 F.f = inthelperf_dps_mc;
                 F.dim=4;
                 lower[0]=lower[1]=LOW_PT_CUT;
-                lower[2]=lower[3]=castor_min_pseudorapidity - rapidity_shift;
+                lower[2]=lower[3]=castor_min_pseudorapidity - rapidity_shift -1;
                 upper[0]=upper[1]=30;
-                upper[2]=upper[3]=castor_max_pseudorapidity - rapidity_shift;
+                upper[2]=upper[3]=castor_max_pseudorapidity - rapidity_shift + 1;
 
             }
             else if (DPS_N == 3)
@@ -333,9 +334,23 @@ int main(int argc, char* argv[])
                 F.f = inthelperf_3ps_mc;
                 F.dim=6;
                 lower[0]=lower[1]=lower[2]=LOW_PT_CUT;
-                lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity - rapidity_shift;
+                lower[3]=lower[4]=lower[5]=castor_min_pseudorapidity - rapidity_shift - 1;
                 upper[0]=upper[1]=upper[2]=30;
-                upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity - rapidity_shift;
+                upper[3]=upper[4]=upper[5]=castor_max_pseudorapidity - rapidity_shift + 1;
+            }
+            else if (DPS_N == 4)
+            {
+                F.f = inthelperf_4ps_mc;
+                F.dim=6;
+                lower[0]=lower[1]=lower[2]=lower[3]=LOW_PT_CUT;
+                lower[4]=lower[5]=lower[6]=lower[7]=castor_min_pseudorapidity - rapidity_shift - 1;
+                upper[0]=upper[1]=upper[2]=upper[3]=30;
+                upper[4]=upper[5]=upper[6]=upper[7]=castor_max_pseudorapidity - rapidity_shift + 1;
+            }
+            else
+            {
+                cerr << "DPS N=" << DPS_N << " is not supported!" << endl;
+                exit(1);
             }
             F.params = &par;
             gsl_monte_miser_state *s = gsl_monte_miser_alloc(F.dim);
@@ -611,6 +626,92 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p)
     // (2pi)^3 from two angular integrals, this should later be scaled by R/2pi to take into account
     //the jet finding algorithm effect
     return std::pow(2.0*M_PI, 3.0)*pt1*pt2*pt3*diffxs;
+}
+
+
+
+
+
+
+
+///////////////////////////////////////////
+///////////////////// 4 particle production
+///////////////////////////////////////////
+double inthelperf_4ps_mc(double* vec, size_t dim, void* p)
+{
+    
+    inthelper_castor *par = (inthelper_castor*)p;
+    
+    double pt1 = vec[0];
+    double pt2 = vec[1];
+    double pt3 = vec[2];
+    double pt4 = vec[3];
+    double y1=vec[4];
+    double y2=vec[5];
+    double y3 = vec[6];
+    double y4 = vec[7];
+    
+    // Kinematics
+    // The calculation is done in the center-of-mass frame
+    // But castor measures jet energy in the LAB frame
+    
+    // First approximation: we set rapidity=pseudorapidity
+    // and compute the produced jet energy in the LAB frame
+    // after applyint rapidity_shift boost
+    
+    // This should be quite good approximation, at least with m=0.2GV,
+    // as pt values are aloways > 1 GeV
+    
+    
+    double shift = rapidity_shift;
+    
+    double y1_lab = y1+shift;
+    double y2_lab = y2+shift;
+    double y3_lab = y3 + shift;
+    double y4_lab = y4 + shift;
+    double eta1_lab = Pseudorapidity(y1_lab, pt1, par->m);
+    double eta2_lab = Pseudorapidity(y2_lab, pt2, par->m);
+    double eta3_lab = Pseudorapidity(y3_lab, pt3, par->m);
+    double eta4_lab = Pseudorapidity(y4_lab, pt4, par->m);
+    
+    // End up in CASTOR
+    if (eta1_lab < castor_min_pseudorapidity or eta1_lab > castor_max_pseudorapidity
+        or eta2_lab < castor_min_pseudorapidity or eta2_lab > castor_max_pseudorapidity
+        or eta3_lab < castor_min_pseudorapidity or eta3_lab > castor_max_pseudorapidity
+        or eta4_lab < castor_min_pseudorapidity or eta4_lab > castor_max_pseudorapidity)
+        return 0;
+    
+    
+    // Check kinematics
+    double energy_1 = JetEnergy(y1_lab, pt1, par->m);
+    double energy_2 = JetEnergy(y2_lab, pt2, par->m);
+    double energy_3 = JetEnergy(y3_lab, pt3, par->m);
+    double energy_4 = JetEnergy(y4_lab, pt4, par->m);
+    double energy = energy_1 + energy_2 + energy_3 + energy_4;
+    
+    if (energy < par->minE or energy > par->maxE)
+    {
+        //cout << "Out of kinematics [" << par->minE << ", " << par->maxE << "]: y " << par->y << " pt " << pt << " E " << energy << endl;
+        //cout << par->y << " " << pt <<" " << energy  << endl;
+        return 0;
+    }
+    
+    // Do angular integral, and add jacobian 2pi
+    // 2nd to last parameters: false=no deuteron
+    double pdf_scale = (pt1+pt2+pt3+pt4)/4.0;
+    if (pdf_scale < par->pdf->MinQ())
+        pdf_scale = par->pdf->MinQ();
+    double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton_4ps(y1,pt1,y2,pt2, y3, pt3, y4,pt4, par->sqrts, par->pdf, false,  pdf_scale );
+    
+    
+    if (diffxs <0 )
+    {
+        cerr << "Differential cross section<0, res " << diffxs << endl;
+    }
+    
+    // (2pi)^4 from two angular integrals, this should later be scaled by R/2pi to take into account
+    //the jet finding algorithm effect
+    return std::pow(2.0*M_PI, 4.0)*pt1*pt2*pt3*pt4*diffxs;
 }
 
 
