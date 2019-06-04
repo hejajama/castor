@@ -342,7 +342,7 @@ int main(int argc, char* argv[])
             else if (DPS_N == 4)
             {
                 F.f = inthelperf_4ps_mc;
-                F.dim=6;
+                F.dim=8;
                 lower[0]=lower[1]=lower[2]=lower[3]=LOW_PT_CUT;
                 lower[4]=lower[5]=lower[6]=lower[7]=castor_min_pseudorapidity - rapidity_shift - 1;
                 upper[0]=upper[1]=upper[2]=upper[3]=30;
