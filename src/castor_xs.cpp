@@ -471,7 +471,7 @@ double inthelperf_pt(double pt, void* p)
     if (pt < par->pdf->MinQ())
         pdf_scale = par->pdf->MinQ();
     double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton(par->y, pt, par->sqrts,
-                                                               par->pdf, false,  pdf_scale );
+                                                               par->pdf, false,  pdf_scale, par->m );
     
 	
     if (diffxs <0 )
@@ -539,7 +539,7 @@ double inthelperf_dps_mc(double* vec, size_t dim, void* p)
     if (pdf_scale < par->pdf->MinQ())
         pdf_scale = par->pdf->MinQ();
     double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton_dps(y1,pt1,y2,pt2, par->sqrts,
-                                                               par->pdf, false,  pdf_scale );
+                                                               par->pdf, false,  pdf_scale, par->m );
     
     
     if (diffxs <0 )
@@ -616,7 +616,7 @@ double inthelperf_3ps_mc(double* vec, size_t dim, void* p)
     if (pdf_scale < par->pdf->MinQ())
         pdf_scale = par->pdf->MinQ();
     double diffxs = par->xs->dHadronMultiplicity_dyd2pt_parton_3ps(y1,pt1,y2,pt2, y3, pt3, par->sqrts,
-                                                                   par->pdf, false,  pdf_scale );
+                                                                   par->pdf, false,  pdf_scale, par->m );
     
     
     if (diffxs <0 )
